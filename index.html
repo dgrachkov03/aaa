@@ -15,7 +15,9 @@
   <link rel="stylesheet" href="./css/swiper-bundle.min.css">
 
   <script>
-    document.documentElement.classList.add(/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios' : 'not-ios');
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    document.documentElement.classList.add('ios');
+  }
   </script>
 
   <!-- Подключение скриптов -->

@@ -467,42 +467,13 @@ body {
   transform: scale(1.025);
 }
 
-#mobile-keyboard-input {
-  position: absolute;
-  left: -1000px;
-  top: -1000px;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
-  border: none;
-  background: transparent;
-}
-
 .ios .crossword__cell {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .ios #mobile-keyboard-input {
-  position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  top: auto !important;
-  left: auto !important;
-  width: 60px !important;
-  height: 60px !important;
-  opacity: 0.3 !important;
-  background: rgba(0,0,0,0.1) !important;
-  border: 2px solid rgba(0,0,0,0.3) !important;
-  border-radius: 8px !important;
-  pointer-events: auto !important;
-  z-index: 10000 !important;
-}
-
-.ios #mobile-keyboard-input:focus {
-  opacity: 0.1 !important;
-  background: transparent !important;
-  border: 1px solid rgba(0,0,0,0.1) !important;
-  outline: none !important;
+  bottom: 10px !important;
+  right: 10px !important;
+  opacity: 0.01 !important;
 }
