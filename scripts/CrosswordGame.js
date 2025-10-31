@@ -50,6 +50,8 @@ class CrosswordGame {
     // Определяем мобильное устройство
     this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+    this.isKeyboardOpen = false;
+
     this.createGridMapping();
     
     // Инициализация слайдера вопросов
@@ -83,12 +85,20 @@ class CrosswordGame {
     }
     
     this.mobileInput = mobileInput;
+    this.isKeyboardOpen = false;
 
     // Обработчик ввода с мобильной клавиатуры
     this.mobileInput.addEventListener('input', (e) => {
       if (this.currentCell && e.target.value) {
         this.handleMobileInput(e.target.value);
-        e.target.value = ''; // Очищаем input после обработки
+        e.target.value = '';
+        
+        // После ввода буквы сохраняем фокус для продолжения ввода
+        if (this.currentCell && !this.isEndOfWord()) {
+          setTimeout(() => {
+            this.keepMobileFocus();
+          }, 50);
+        }
       }
     });
 
@@ -97,10 +107,29 @@ class CrosswordGame {
       if (e.key === 'Enter') {
         e.preventDefault();
         this.checkCurrentWord();
+        // После проверки слова сохраняем фокус если слово не завершено
+        setTimeout(() => {
+          if (this.currentCell && !this.isCorrectCell(this.currentCell)) {
+            this.keepMobileFocus();
+          }
+        }, 100);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         this.handleBackspace();
+        // После удаления сохраняем фокус
+        setTimeout(() => {
+          this.keepMobileFocus();
+        }, 50);
       }
+    });
+
+    // Обработчики для отслеживания состояния клавиатуры
+    this.mobileInput.addEventListener('focus', () => {
+      this.isKeyboardOpen = true;
+    });
+
+    this.mobileInput.addEventListener('blur', () => {
+      this.isKeyboardOpen = false;
     });
   }
 
@@ -119,19 +148,28 @@ class CrosswordGame {
       
       // Проверяем слово если оно полностью заполнено
       if (this.isCurrentWordFullyFilled()) {
-        this.checkCurrentWord();
+        const wasCorrect = this.checkCurrentWord();
+        
+        // Если слово правильно введено, закрываем клавиатуру
+        if (wasCorrect) {
+          setTimeout(() => {
+            this.closeMobileKeyboard();
+          }, 500);
+        }
       }
       
       // Автопереход на мобильных
       if (!this.isEndOfWord()) {
         setTimeout(() => {
           this.moveInCurrentDirection("forward");
-          this.focusMobileInput(); // Снова фокусируем input для следующей буквы
+          // Сохраняем фокус для следующей буквы
+          this.keepMobileFocus();
         }, 50);
       } else {
-        // Если достигли конца слова - фокусируем для следующего ввода
+        // Если достигли конца слова, но слово еще не заполнено полностью
+        // Оставляем фокус для возможного исправления
         setTimeout(() => {
-          this.focusMobileInput();
+          this.keepMobileFocus();
         }, 50);
       }
     }
@@ -144,7 +182,28 @@ class CrosswordGame {
     if (this.isMobile && this.currentCell) {
       setTimeout(() => {
         this.mobileInput.focus();
+        this.isKeyboardOpen = true;
       }, 100);
+    }
+  }
+
+  /**
+   * Сохранение фокуса для непрерывного ввода
+   */
+  keepMobileFocus() {
+    if (this.isMobile && this.currentCell && !this.isKeyboardOpen) {
+      this.mobileInput.focus();
+      this.isKeyboardOpen = true;
+    }
+  }
+
+  /**
+   * Закрытие клавиатуры при завершении слова
+   */
+  closeMobileKeyboard() {
+    if (this.isMobile) {
+      this.mobileInput.blur();
+      this.isKeyboardOpen = false;
     }
   }
 
@@ -341,8 +400,7 @@ class CrosswordGame {
   }
 
   /**
-   * Обрабатывает клик по ячейке кроссворда
-   * Устанавливает активное слово и переключает слайдер на соответствующий вопрос
+   * Обработка клика по ячейке кроссворда
    */
   handleCellClick(cell) {
     if (!this.isInputCell(cell) || this.isCorrectCell(cell)) return;
@@ -690,10 +748,10 @@ class CrosswordGame {
 
   /**
    * Проверяет текущее активное слово
-   * При успешной проверке переходит к следующему нерешенному слову
+   * Возвращает true если слово было правильным
    */
   checkCurrentWord() {
-    if (!this.currentCell) return;
+    if (!this.currentCell) return false;
 
     const wordInfo = this.findWordForCell(this.currentCell);
     if (wordInfo) {
@@ -701,8 +759,10 @@ class CrosswordGame {
       
       if (wasCorrect) {
         this.moveToNextQuestion();
+        return true;
       }
     }
+    return false;
   }
 
   /**
@@ -772,7 +832,6 @@ class CrosswordGame {
 
   /**
    * Переходит к следующему нерешенному вопросу
-   * Используется после успешной проверки слова
    */
   moveToNextQuestion() {
     const nextWordId = this.findNextUncompletedWord();
@@ -788,10 +847,22 @@ class CrosswordGame {
         this.setFocus(firstAvailableCell);
         this.slider.goToQuestion(nextWordId.toString());
         
-        // На мобильных обновляем фокус input
+        // На мобильных открываем клавиатуру для нового слова
         if (this.isMobile) {
-          this.focusMobileInput();
+          setTimeout(() => {
+            this.focusMobileInput();
+          }, 200);
         }
+      } else {
+        // Если не нашли доступную ячейку, закрываем клавиатуру
+        if (this.isMobile) {
+          this.closeMobileKeyboard();
+        }
+      }
+    } else {
+      // Если не осталось нерешенных слов, закрываем клавиатуру
+      if (this.isMobile) {
+        this.closeMobileKeyboard();
       }
     }
   }
