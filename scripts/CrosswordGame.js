@@ -53,6 +53,7 @@ class CrosswordGame {
     // Флаги для управления мобильной клавиатурой
     this.keepKeyboardOpen = false;
     this.isKeyboardActive = false;
+    this.keyboardOpening = false;
 
     this.keyboardRetryCount = 0;
     this.maxKeyboardRetries = 3;
@@ -94,29 +95,32 @@ class CrosswordGame {
     this.mobileInput.id = 'mobile-keyboard-input';
     this.mobileInput.type = 'text';
     
+    // Важные атрибуты для iOS
     this.mobileInput.setAttribute('inputmode', 'text');
     this.mobileInput.setAttribute('autocomplete', 'off');
     this.mobileInput.setAttribute('autocorrect', 'off');
     this.mobileInput.setAttribute('autocapitalize', 'characters');
     this.mobileInput.setAttribute('spellcheck', 'false');
     this.mobileInput.setAttribute('aria-hidden', 'true');
-
+    
+    // Для iOS важно, чтобы поле было видимым (хоть и очень маленьким)
     this.mobileInput.style.cssText = `
       position: fixed;
-      bottom: 5px;
-      right: 5px;
-      width: 10px;
-      height: 10px;
-      opacity: 0.5;
+      bottom: 10px;
+      right: 10px;
+      width: ${this.isIOS ? '40px' : '10px'};
+      height: ${this.isIOS ? '40px' : '10px'};
+      opacity: ${this.isIOS ? '0.1' : '0.5'};
       background: rgba(0,0,0,0.1);
       border: 1px solid rgba(0,0,0,0.2);
-      border-radius: 2px;
+      border-radius: 4px;
       font-size: 8px;
       color: transparent;
       z-index: 10000;
       pointer-events: auto;
       -webkit-user-select: none;
       user-select: none;
+      -webkit-user-modify: read-write-plaintext-only;
     `;
 
     document.body.appendChild(this.mobileInput);
@@ -135,26 +139,59 @@ class CrosswordGame {
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         this.handleMobileBackspace();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.manualCloseKeyboard();
       }
     });
 
     this.mobileInput.addEventListener('focus', () => {
       this.isKeyboardActive = true;
-      setTimeout(() => {
-        this.mobileInput.style.opacity = '0.1';
-        this.mobileInput.style.background = 'transparent';
-        this.mobileInput.style.border = 'none';
-      }, 100);
+      this.keyboardOpening = false;
+      console.log('Keyboard focused on iOS');
+      
+      if (this.isIOS) {
+        setTimeout(() => {
+          this.mobileInput.style.opacity = '0.05';
+          this.mobileInput.style.background = 'transparent';
+          this.mobileInput.style.border = '1px solid rgba(0,0,0,0.1)';
+        }, 50);
+      } else {
+        setTimeout(() => {
+          this.mobileInput.style.opacity = '0.1';
+          this.mobileInput.style.background = 'transparent';
+          this.mobileInput.style.border = 'none';
+        }, 100);
+      }
     });
 
     this.mobileInput.addEventListener('blur', () => {
       this.isKeyboardActive = false;
-      this.mobileInput.style.opacity = '0.5';
-      this.mobileInput.style.background = 'rgba(0,0,0,0.1)';
-      this.mobileInput.style.border = '1px solid rgba(0,0,0,0.2)';
+      console.log('Keyboard blurred on iOS');
+      
+      if (this.isIOS) {
+        this.mobileInput.style.opacity = '0.1';
+        this.mobileInput.style.background = 'rgba(0,0,0,0.1)';
+        this.mobileInput.style.border = '1px solid rgba(0,0,0,0.2)';
+      } else {
+        this.mobileInput.style.opacity = '0.5';
+        this.mobileInput.style.background = 'rgba(0,0,0,0.1)';
+        this.mobileInput.style.border = '1px solid rgba(0,0,0,0.2)';
+      }
       
       this.handleKeyboardBlur();
     });
+
+    // Для iOS добавляем специальные обработчики
+    if (this.isIOS) {
+      this.mobileInput.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+      
+      this.mobileInput.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+    }
 
     this.addTouchHandlers();
   }
@@ -162,9 +199,24 @@ class CrosswordGame {
   addTouchHandlers() {
     this.cellElements.forEach((cell) => {
       if (this.isInputCell(cell) && !this.isCorrectCell(cell)) {
-        cell.addEventListener('touchstart', (e) => {
+        // Удаляем старые обработчики
+        cell.removeEventListener('touchstart', this.touchStartHandler);
+        cell.removeEventListener('touchend', this.touchEndHandler);
+        
+        // Обработчик начала касания
+        this.touchStartHandler = (e) => {
           this.handleTouchStart(e, cell);
-        }, { passive: true });
+        };
+        
+        // Обработчик окончания касания (для iOS)
+        this.touchEndHandler = (e) => {
+          if (this.isIOS) {
+            this.handleTouchEnd(e, cell);
+          }
+        };
+        
+        cell.addEventListener('touchstart', this.touchStartHandler, { passive: true });
+        cell.addEventListener('touchend', this.touchEndHandler, { passive: true });
       }
     });
   }
@@ -173,67 +225,136 @@ class CrosswordGame {
    * Обработчик touch событий для мобильных устройств
    */
   handleTouchStart(e, cell) {
-    e.preventDefault();
+    if (this.isIOS) {
+      // Для iOS предотвращаем стандартное поведение
+      e.preventDefault();
+    }
     this.handleCellClick(cell);
+  }
+
+  /**
+   * Обработчик окончания касания для iOS
+   */
+  handleTouchEnd(e, cell) {
+    if (!this.isIOS) return;
+    
+    // Для iOS открываем клавиатуру после окончания касания
+    setTimeout(() => {
+      if (this.currentCell === cell && this.keepKeyboardOpen) {
+        this.forceOpenKeyboard();
+      }
+    }, 100);
   }
 
   handleKeyboardBlur() {
     if (this.keepKeyboardOpen && this.currentCell && !this.isKeyboardActive) {
+      console.log('Keyboard blur detected, refocusing...');
       setTimeout(() => {
-        if (this.keepKeyboardOpen && this.currentCell) {
-          this.mobileInput.focus();
+        if (this.keepKeyboardOpen && this.currentCell && !this.isKeyboardActive) {
+          this.forceOpenKeyboard();
         }
-      }, 150);
+      }, 200);
     }
   }
 
   /**
-   * Открытие и удержание клавиатуры в открытом состоянии
-   * Устанавливает флаг keepKeyboardOpen и фокусируется на скрытом input
+   * Принудительное открытие клавиатуры для iOS
    */
-  openAndKeepKeyboard() {
+  forceOpenKeyboard() {
     if (!this.isMobile || !this.currentCell) return;
     
-    this.keepKeyboardOpen = true;
+    console.log('Force opening keyboard...');
     
     if (this.isIOS) {
-      setTimeout(() => {
-        this.mobileInput.focus();
-      }, 100);
+      // Для iOS используем несколько попыток
+      this.keyboardOpening = true;
       
-      setTimeout(() => {
-        if (!this.isKeyboardActive) {
-          this.mobileInput.focus();
-          this.mobileInput.click();
+      const tryFocus = (attempt = 0) => {
+        if (attempt >= 3) {
+          this.keyboardOpening = false;
+          return;
         }
-      }, 300);
+        
+        console.log(`Keyboard focus attempt ${attempt + 1}`);
+        
+        // Важно: на iOS фокус должен быть в контексте пользовательского действия
+        this.mobileInput.focus();
+        
+        // Для iOS также может помочь click()
+        setTimeout(() => {
+          if (!this.isKeyboardActive) {
+            this.mobileInput.click();
+          }
+        }, 50);
+        
+        // Проверяем успешность и повторяем если нужно
+        setTimeout(() => {
+          if (!this.isKeyboardActive && this.keepKeyboardOpen) {
+            tryFocus(attempt + 1);
+          } else {
+            this.keyboardOpening = false;
+          }
+        }, 150);
+      };
+      
+      tryFocus(0);
     } else {
+      // Для Android и других
       this.mobileInput.focus();
     }
   }
 
   /**
+   * Открытие и удержание клавиатуры в открытом состоянии
+   */
+  openAndKeepKeyboard() {
+    if (!this.isMobile || !this.currentCell) return;
+    
+    this.keepKeyboardOpen = true;
+    console.log('Opening and keeping keyboard open');
+    
+    if (this.isIOS) {
+      // Для iOS используем отложенное открытие
+      setTimeout(() => {
+        this.forceOpenKeyboard();
+      }, 100);
+    } else {
+      // Для других мобильных
+      setTimeout(() => {
+        this.mobileInput.focus();
+      }, 100);
+    }
+  }
+
+  /**
    * Закрытие клавиатуры
-   * Сбрасывает флаги и убирает фокус со скрытого input
    */
   closeKeyboard() {
     if (!this.isMobile) return;
     
+    console.log('Closing keyboard');
     this.keepKeyboardOpen = false;
     this.isKeyboardActive = false;
     this.mobileInput.blur();
+    
+    // Для iOS также убираем фокус
+    if (this.isIOS) {
+      this.mobileInput.style.opacity = '0.1';
+      this.mobileInput.style.background = 'rgba(0,0,0,0.1)';
+      this.mobileInput.style.border = '1px solid rgba(0,0,0,0.2)';
+    }
   }
 
   /**
    * Обеспечивает постоянный фокус на input для мобильной клавиатуры
-   * Автоматически возвращает фокус если клавиатура должна оставаться открытой
    */
   keepKeyboardFocused() {
-    if (!this.isMobile || !this.keepKeyboardOpen || this.isKeyboardActive) return;
+    if (!this.isMobile || !this.keepKeyboardOpen || this.isKeyboardActive || this.keyboardOpening) return;
     
     setTimeout(() => {
-      if (this.keepKeyboardOpen && !this.isKeyboardActive && this.currentCell) {
-        this.mobileInput.focus({ preventScroll: true });
+      if (this.keepKeyboardOpen && !this.isKeyboardActive && this.currentCell && !this.keyboardOpening) {
+        console.log('Keeping keyboard focused');
+        this.forceOpenKeyboard();
       }
     }, 100);
   }
@@ -255,24 +376,19 @@ class CrosswordGame {
       if (!this.isEndOfWord()) {
         setTimeout(() => {
           this.moveInCurrentDirection("forward");
-          // После перехода сохраняем фокус на input
           this.keepKeyboardFocused();
         }, 50);
       } else {
-        // Если достигли конца слова, проверяем его
         if (this.isCurrentWordFullyFilled()) {
           const wasCorrect = this.checkCurrentWord();
           if (wasCorrect) {
-            // Слово правильно - НЕ закрываем клавиатуру, она останется открытой для следующего слова
             setTimeout(() => {
               this.keepKeyboardFocused();
             }, 100);
           } else {
-            // Если слово неправильное, оставляем клавиатуру открытой для исправлений
             this.keepKeyboardFocused();
           }
         } else {
-          // Слово не полностью заполнено - оставляем клавиатуру открытой
           this.keepKeyboardFocused();
         }
       }
@@ -281,7 +397,6 @@ class CrosswordGame {
 
   /**
    * Обработка Backspace для мобильных устройств
-   * Специальная версия для мобильного ввода с сохранением фокуса клавиатуры
    */
   handleMobileBackspace() {
     if (!this.currentCell) return;
@@ -296,13 +411,11 @@ class CrosswordGame {
       this.moveInCurrentDirection("backward");
     }
     
-    // Сохраняем фокус после Backspace
     this.keepKeyboardFocused();
   }
 
   /**
-   * Ручное закрытие клавиатуры по требованию пользователя
-   * Может использоваться для кнопки "Скрыть клавиатуру"
+   * Ручное закрытие клавиатуры
    */
   manualCloseKeyboard() {
     if (this.isMobile) {
@@ -331,7 +444,6 @@ class CrosswordGame {
 
   /**
    * Загружает сохраненный прогресс из localStorage
-   * Восстанавливает решенные слова и введенные пользователем буквы
    */
   loadProgress() {
     const saved = localStorage.getItem(`crossword-${this.crosswordId}-progress`);
@@ -341,11 +453,9 @@ class CrosswordGame {
         const progress = JSON.parse(saved);
         this.solvedWords = new Set(progress.solvedWords || []);
         
-        // Восстанавливаем решенные слова и введенные буквы
         this.restoreSolvedCells();
         this.restoreUserInput(progress.userLetters || {});
         
-        // Проверяем завершение после загрузки прогресса
         if (this.isCrosswordCompleted()) {
           this.popupController.checkCrosswordCompletion(
             this.solvedWords.size, 
@@ -354,14 +464,13 @@ class CrosswordGame {
         }
         
       } catch (e) {
-        // Ошибка загрузки прогресса
+        console.error('Error loading progress:', e);
       }
     }
   }
 
   /**
    * Восстанавливает визуальное состояние решенных ячеек
-   * Отображает правильные буквы и блокирует взаимодействие
    */
   restoreSolvedCells() {
     this.solvedWords.forEach(wordId => {
@@ -402,7 +511,6 @@ class CrosswordGame {
 
   /**
    * Собирает все введенные пользователем буквы для сохранения
-   * Игнорирует решенные ячейки (они сохраняются отдельно)
    */
   saveAllLetters() {
     const letters = {};
@@ -420,7 +528,6 @@ class CrosswordGame {
 
   /**
    * Сохраняет полный прогресс в localStorage
-   * Включает решенные слова и все введенные буквы
    */
   saveProgress() {
     const progress = {
@@ -449,13 +556,12 @@ class CrosswordGame {
     try {
       console.log('Completion data:', completionData);
     } catch (error) {
-      // Игнорируем ошибки отправки
+      console.error('Error sending completion data:', error);
     }
   }
 
   /**
    * Подсвечивает ячейки текущего активного слова
-   * Помогает пользователю визуально ориентироваться в текущем слове
    */
   highlightCurrentWord() {
     this.cellElements.forEach(cell => {
@@ -481,7 +587,6 @@ class CrosswordGame {
 
   /**
    * Обрабатывает смену вопроса через слайдер
-   * Обновляет текущее слово и устанавливает фокус на первую доступную ячейку
    */
   handleSliderQuestionChange(wordId) {
     if (!wordId) return;
@@ -490,13 +595,11 @@ class CrosswordGame {
     const wordData = this.data.words[wordId];
     this.currentDirection = wordData.direction;
     
-    // Находим первую доступную ячейку для этого слова
     const firstCell = this.findFirstAvailableCellInWord(wordId);
     if (firstCell) {
       this.setFocus(firstCell);
     }
     
-    // Сохраняем состояние при смене вопроса через слайдер
     this.saveProgress();
   }
 
@@ -546,50 +649,38 @@ class CrosswordGame {
 
   /**
    * Главный обработчик клавиатурных событий (только для десктопа)
-   * Управляет вводом букв, навигацией и проверкой слов
    */
   handleKeyPress(e) {
-    // На мобильных используем скрытый input, поэтому игнорируем прямые keydown
     if (this.isMobile) return;
 
     if (!this.currentCell || this.isCorrectCell(this.currentCell)) return;
 
-    // Ввод буквы (русский и английский алфавит) - ТОЛЬКО ДЛЯ ДЕСКТОПА
     if (e.key.length === 1 && /[а-яА-Яa-zA-Z]/.test(e.key)) {
       this.currentCell.textContent = e.key.toUpperCase();
       this.clearWrongStatusOnly(this.currentCell);
       
-      // Проверяем все слова, которые используют эту ячейку
       this.checkAllWordsForCell(this.currentCell);
-      
-      // Сохраняем только после ввода буквы
       this.saveProgress();
       
-      // Проверяем слово только если оно полностью заполнено
       if (this.isCurrentWordFullyFilled()) {
         this.checkCurrentWord();
       }
       
-      // Переходим вперед, если не достигнут конец слова
       if (!this.isEndOfWord()) {
         this.moveInCurrentDirection("forward");
       }
     }
-
-    // Удаление буквы с переходом назад
     else if (e.key === "Backspace") {
       const hasContent = this.currentCell.textContent !== "";
 
       if (hasContent && !this.isCorrectCell(this.currentCell)) {
         this.currentCell.textContent = "";
         this.clearWrongStatusOnly(this.currentCell);
-        this.saveProgress(); // Сохраняем при удалении
+        this.saveProgress();
       } else {
         this.moveInCurrentDirection("backward");
       }
     }
-
-    // Удаление буквы на месте (без перехода)
     else if (e.key === "Delete") {
       if (!this.isCorrectCell(this.currentCell)) {
         this.currentCell.textContent = "";
@@ -597,14 +688,10 @@ class CrosswordGame {
         this.saveProgress();
       }
     }
-
-    // Навигация стрелками
     else if (e.key.startsWith("Arrow")) {
       e.preventDefault();
       this.handleArrowNavigation(e.key);
     }
-
-    // ПРОВЕРКА СЛОВА только по Enter
     else if (e.key === "Enter") {
       e.preventDefault();
       this.checkCurrentWord();
@@ -613,7 +700,6 @@ class CrosswordGame {
 
   /**
    * Проверяет полностью ли заполнено текущее активное слово
-   * Используется для автоматической проверки при вводе
    */
   isCurrentWordFullyFilled() {
     if (!this.currentWordId) return false;
@@ -629,18 +715,16 @@ class CrosswordGame {
       const col = direction === "horizontal" ? startCol + i : startCol;
       
       const cell = this.cells[row]?.[col];
-      // Если ячейка не решена и пустая - слово не полностью заполнено
       if (cell && !this.isCorrectCell(cell) && !cell.textContent.trim()) {
         return false;
       }
     }
     
-    return true; // Все ячейки заполнены
+    return true;
   }
 
   /**
    * Проверяет все слова, которые используют данную ячейку
-   * Нужно для перепроверки пересекающихся слов при изменении буквы
    */
   checkAllWordsForCell(cell) {
     const row = parseInt(cell.dataset.row);
@@ -651,7 +735,6 @@ class CrosswordGame {
       const { direction, startPosition, length } = wordData;
       const { row: startRow, col: startCol } = startPosition;
       
-      // Проверяем, принадлежит ли ячейка этому слову
       let belongsToWord = false;
       if (direction === "horizontal") {
         belongsToWord = (row === startRow && col >= startCol && col < startCol + length);
@@ -659,7 +742,6 @@ class CrosswordGame {
         belongsToWord = (col === startCol && row >= startRow && row < startRow + length);
       }
       
-      // Если ячейка принадлежит слову и слово уже решено, перепроверяем его
       if (belongsToWord && this.solvedWords.has(wordId)) {
         this.checkWord(wordId);
       }
@@ -668,7 +750,6 @@ class CrosswordGame {
 
   /**
    * Проверяет находится ли текущая ячейка в конце слова
-   * Используется для управления автопереходом при вводе
    */
   isEndOfWord() {
     if (!this.currentCell) return false;
@@ -691,7 +772,6 @@ class CrosswordGame {
 
   /**
    * Обработчик навигации стрелками
-   * Меняет направление ввода в зависимости от нажатой стрелки
    */
   handleArrowNavigation(key) {
     const currentRow = parseInt(this.currentCell.dataset.row);
@@ -719,12 +799,10 @@ class CrosswordGame {
         break;
     }
 
-    // Пытаемся найти и сфокусировать ячейку
     const found = this.findAndFocusCell(newRow, newCol, key);
     
-    // Если не нашли подходящую ячейку, остаемся на текущей
     if (!found) {
-      this.highlightCurrentWord(); // Обновляем подсветку
+      this.highlightCurrentWord();
     }
   }
 
@@ -736,7 +814,6 @@ class CrosswordGame {
     if (cell && this.isInputCell(cell)) {
       const wordInfo = this.findWordForCell(cell);
       
-      // Всегда переключаем слово при навигации стрелками, если нашли новое слово
       if (wordInfo && wordInfo.id !== this.currentWordId) {
         this.currentWordId = wordInfo.id;
         this.currentDirection = wordInfo.data.direction;
@@ -782,7 +859,6 @@ class CrosswordGame {
 
   /**
    * Ищет следующую доступную ячейку в текущем направлении
-   * Пропускает решенные ячейки и пустые клетки
    */
   findNextAvailableCell(startRow, startCol, directionType) {
     let row = startRow;
@@ -826,7 +902,6 @@ class CrosswordGame {
 
   /**
    * Проверяет текущее активное слово
-   * Возвращает true если слово было правильным
    */
   checkCurrentWord() {
     if (!this.currentCell) return false;
@@ -845,7 +920,6 @@ class CrosswordGame {
 
   /**
    * Проверяет правильность заполнения слова
-   * Закрытие клавиатуры только при полном завершении кроссворда
    */
   checkWord(wordId) {
     const wordData = this.data.words[wordId];
@@ -857,7 +931,6 @@ class CrosswordGame {
     let userWord = "";
     const wordCells = [];
 
-    // Собираем введенное слово из ячеек
     for (let i = 0; i < length; i++) {
       const row = direction === "horizontal" ? startRow : startRow + i;
       const col = direction === "horizontal" ? startCol + i : startCol;
@@ -871,13 +944,12 @@ class CrosswordGame {
 
     const isCorrect = userWord === correctWord;
 
-    // Обновляем визуальное состояние каждой ячейки слова
     wordCells.forEach((cell, index) => {
       if (!this.isCorrectCell(cell)) {
         this.clearWrongStatusOnly(cell);
         if (isCorrect) {
           cell.classList.add(this.stateClasses.isCorrect);
-          cell.style.pointerEvents = "none"; // Блокируем решенные ячейки
+          cell.style.pointerEvents = "none";
         } else {
           cell.classList.add(this.stateClasses.isWrong);
         }
@@ -888,9 +960,7 @@ class CrosswordGame {
       this.solvedWords.add(wordId);
       this.saveProgress();
       
-      // Проверяем завершение кроссворда
       if (this.isCrosswordCompleted()) {
-        // Только при полном завершении кроссворда закрываем клавиатуру
         if (this.isMobile) {
           setTimeout(() => {
             this.closeKeyboard();
@@ -916,7 +986,6 @@ class CrosswordGame {
 
   /**
    * Переходит к следующему нерешенному вопросу
-   * Сохраняет клавиатуру открытой при переходе к следующему слову
    */
   moveToNextQuestion() {
     const nextWordId = this.findNextUncompletedWord();
@@ -932,19 +1001,16 @@ class CrosswordGame {
         this.setFocus(firstAvailableCell);
         this.slider.goToQuestion(nextWordId.toString());
         
-        // На мобильных продолжаем держать клавиатуру открытой для следующего слова
         if (this.isMobile) {
           this.keepKeyboardOpen = true;
           this.keepKeyboardFocused();
         }
       } else {
-        // Если не нашли доступную ячейку, оставляем клавиатуру открытой на текущей ячейке
         if (this.isMobile) {
           this.keepKeyboardFocused();
         }
       }
     } else {
-      // Если не осталось нерешенных слов, закрываем клавиатуру
       if (this.isMobile) {
         this.closeKeyboard();
       }
@@ -953,7 +1019,6 @@ class CrosswordGame {
 
   /**
    * Находит первую доступную ячейку в указанном слове
-   * Отдает приоритет нерешенным ячейкам, но показывает начало слова даже если оно решено
    */
   findFirstAvailableCellInWord(wordId) {
     const wordData = this.data.words[wordId];
@@ -962,27 +1027,21 @@ class CrosswordGame {
     const { direction, startPosition, length } = wordData;
     const { row: startRow, col: startCol } = startPosition;
 
-    // Ищем самую ПЕРВУЮ ячейку слова, даже если она решена
-    // Но если она решена, ищем следующую нерешенную
     for (let i = 0; i < length; i++) {
       const row = direction === "horizontal" ? startRow : startRow + i;
       const col = direction === "horizontal" ? startCol + i : startCol;
       
       const cell = this.cells[row]?.[col];
       if (cell && this.isInputCell(cell)) {
-        // Если ячейка не решена - возвращаем ее
         if (!this.isCorrectCell(cell)) {
           return cell;
         }
-        // Если ячейка решена, но это ПЕРВАЯ ячейка слова - все равно возвращаем ее
-        // чтобы пользователь видел начало слова
         if (i === 0) {
           return cell;
         }
       }
     }
     
-    // Если ничего не нашли, возвращаем первую ячейку слова
     const firstRow = direction === "horizontal" ? startRow : startRow;
     const firstCol = direction === "horizontal" ? startCol : startCol;
     const firstCell = this.cells[firstRow]?.[firstCol];
@@ -1034,19 +1093,16 @@ class CrosswordGame {
 
   /**
    * Находит слово, к которому принадлежит указанная ячейка
-   * Приоритет отдается текущему активному слову
    */
   findWordForCell(cell) {
     const row = parseInt(cell.dataset.row);
     const col = parseInt(cell.dataset.col);
 
-    // Сначала проверяем, принадлежит ли ячейка текущему слову
     if (this.currentWordId && this.isCellInCurrentWord(cell)) {
       const currentWordData = this.data.words[this.currentWordId];
       return { id: this.currentWordId, data: currentWordData };
     }
 
-    // Если не в текущем слове, ищем во всех словах
     for (const wordId in this.data.words) {
       const wordData = this.data.words[wordId];
       const { direction, startPosition, length } = wordData;
@@ -1080,7 +1136,6 @@ class CrosswordGame {
       const cell = this.cells[row]?.[col];
       
       if (cell && this.isInputCell(cell) && !this.isCorrectCell(cell)) {
-        // Всегда обновляем слово при нахождении ячейки
         this.updateWordForPosition(row, col, direction);
         this.setFocus(cell);
         
@@ -1091,7 +1146,6 @@ class CrosswordGame {
         return true;
       }
 
-      // Продолжаем движение в том же направлении
       switch (direction) {
         case "ArrowLeft":
           col--;
@@ -1154,7 +1208,6 @@ class CrosswordGame {
 
   /**
    * Проверяет является ли ячейка доступной для ввода
-   * Исключает пустые клетки и ячейки с номерами
    */
   isInputCell(cell) {
     return (
