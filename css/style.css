@@ -3,15 +3,15 @@
 
 :root {
   --color-dark: #080303;
-  --color-light: #FFFFFF;
-  --color-primary: #2678F4;
-  --color-focus: #CCDDF6;
-  --color-error: #FF7A7A;
-  --color-success: #83FF85;
+  --color-light: #ffffff;
+  --color-primary: #2678f4;
+  --color-focus: #ccddf6;
+  --color-error: #ff7a7a;
+  --color-success: #83ff85;
 
-  --background: #EFEFEF;
+  --background: #efefef;
 
-  --border: 1px solid #3C3C3C;
+  --border: 1px solid #3c3c3c;
 
   --border-radius: 30px;
 
@@ -25,7 +25,8 @@ html {
   scroll-behavior: smooth;
 }
 
-html, body {
+html,
+body {
   min-height: 100%;
   position: relative;
 }
@@ -141,7 +142,7 @@ body {
 .crossword {
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
-  background-color: #F6F6F6;
+  background-color: #f6f6f6;
   width: 100%;
 }
 
@@ -179,7 +180,7 @@ body {
 
 .crossword__cell.is-focused {
   background-color: var(--color-focus);
-  outline: 2px solid #2678F4;
+  outline: 2px solid #2678f4;
   outline-offset: -2px;
   box-shadow: 0 0 8px rgba(38, 120, 244, 0.5);
   z-index: 10;
@@ -344,13 +345,15 @@ body {
   right: 0;
 }
 
-.swiper-button-next, .swiper-button-prev {
+.swiper-button-next,
+.swiper-button-prev {
   margin-top: 0 !important;
   width: auto !important;
   height: auto !important;
 }
 
-.swiper-button-next svg, .swiper-button-prev svg {
+.swiper-button-next svg,
+.swiper-button-prev svg {
   fill: none !important;
 }
 
@@ -404,7 +407,7 @@ body {
   padding: 60px;
   max-width: 1044px;
   width: 100%;
-  box-shadow: 3px 6px 10px 0px #0000001A;
+  box-shadow: 3px 6px 10px 0px #0000001a;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -467,14 +470,20 @@ body {
   transform: scale(1.025);
 }
 
+/* Обязательно для iOS */
 #mobile-keyboard-input {
-  position: absolute;
-  left: -1000px;
-  top: -1000px;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
-  border: none;
-  background: transparent;
+  position: fixed !important;
+  top: -100px !important;
+  left: -100px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Отключение стандартного выделения на iOS */
+.crossword__cell {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
