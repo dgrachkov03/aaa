@@ -1,0 +1,473 @@
+@import "./fonts.css";
+@import "./reset.css";
+
+:root {
+  --color-dark: #080303;
+  --color-light: #FFFFFF;
+  --color-primary: #2678F4;
+  --color-focus: #CCDDF6;
+  --color-error: #FF7A7A;
+  --color-success: #83FF85;
+
+  --background: #EFEFEF;
+
+  --border: 1px solid #3C3C3C;
+
+  --border-radius: 30px;
+
+  --font-family-base: "Unbounded", sans-serif;
+  --font-family-accent: "Geometria", sans-serif;
+
+  --transition-duration: 250ms;
+}
+
+html, body {
+  min-height: 100%;
+  position: relative;
+}
+
+body {
+  color: var(--color-dark);
+  font-family: var(--font-family-base);
+  font-weight: 300;
+  background: var(--background);
+  background-image: url("../images/circles-bg.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.is-lock {
+  overflow: hidden;
+  padding-right: 17px;
+}
+
+.container {
+  max-width: 1163.98px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.wrapper {
+  padding-block: 30px;
+}
+
+.back-button {
+  border: 1px solid var(--color-primary);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  column-gap: 10px;
+  text-transform: uppercase;
+  border-radius: 100px;
+  background: transparent;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.back-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--color-primary);
+  transition: left 0.4s ease;
+  z-index: -1;
+}
+
+.back-button:hover::before {
+  left: 0;
+}
+
+.back-button:hover {
+  color: var(--color-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(38, 120, 244, 0.4);
+}
+
+.back-button:hover svg {
+  transform: translateX(-3px);
+}
+
+.back-button:hover svg path {
+  stroke: var(--color-light);
+}
+
+.back-button svg {
+  transition: transform 0.3s ease;
+}
+
+.page-header {
+  padding-bottom: 40px;
+}
+
+.page-header__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  row-gap: 70px;
+}
+
+.page-logo {
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: clamp(20px, 4vw, 50px);
+}
+
+.page-logo__image {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  max-width: 100%;
+}
+
+.page-logo__image--ismigen {
+  width: clamp(136px, 25vw, 271px);
+}
+
+.page-logo__image--anvimaks {
+  width: clamp(143px, 27vw, 285px);
+}
+
+.crossword {
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  background-color: #F6F6F6;
+  width: 100%;
+}
+
+.crossword__game {
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.crossword__grid {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+  overflow-x: auto;
+}
+
+.crossword__cell {
+  /* border-right: var(--border); */
+  /* border-bottom: var(--border); */
+  border: var(--border);
+  width: clamp(18px, 3.5vw, 38px);
+  aspect-ratio: 1;
+  font-size: clamp(9px, 2vw, 22px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 100ms ease;
+  position: relative;
+  z-index: 1;
+}
+
+.crossword__cell:hover {
+  background-color: rgba(38, 120, 244, 0.075);
+}
+
+.crossword__cell.is-focused {
+  background-color: var(--color-focus);
+  outline: 2px solid #2678F4;
+  outline-offset: -2px;
+  box-shadow: 0 0 8px rgba(38, 120, 244, 0.5);
+  z-index: 10;
+  border-color: transparent !important;
+}
+
+.crossword__cell.is-active {
+  background-color: var(--color-focus);
+  z-index: 2;
+}
+
+.crossword__cell.is-correct {
+  background-color: var(--color-success);
+}
+
+.crossword__cell.is-wrong {
+  background-color: var(--color-error) !important;
+}
+
+/* .crossword__cell[data-row="1"],
+.crossword__cell[data-row="5"],
+.crossword__cell[data-row="8"],
+.crossword__cell[data-row="11"],
+.crossword__cell[data-row="14"] {
+  border-top: var(--border);
+}
+
+.crossword__cell:nth-child(16n + 2),
+.crossword__cell:nth-child(16n + 6),
+.crossword__cell:nth-child(16n + 8),
+.crossword__cell:nth-child(16n + 12),
+.crossword__cell:nth-child(16n + 15) {
+  border-left: var(--border);
+}
+
+.crossword__cell[data-row="1"][data-col="3"],
+.crossword__cell[data-row="5"][data-col="3"],
+.crossword__cell[data-row="8"][data-col="9"] {
+  border-left: var(--border);
+}
+
+.crossword__cell[data-row="8"][data-col="9"],
+.crossword__cell[data-row="3"][data-col="5"],
+.crossword__cell[data-row="3"][data-col="11"],
+.crossword__cell[data-row="7"][data-col="14"] {
+  border-top: var(--border);
+}
+
+.crossword__cell[data-row="1"][data-col="5"],
+.crossword__cell[data-row="1"][data-col="7"],
+.crossword__cell[data-row="5"][data-col="5"],
+.crossword__cell[data-row="5"][data-col="7"],
+.crossword__cell[data-row="5"][data-col="11"],
+.crossword__cell[data-row="8"][data-col="11"],
+.crossword__cell[data-row="8"][data-col="14"],
+.crossword__cell[data-row="11"][data-col="5"],
+.crossword__cell[data-row="11"][data-col="7"],
+.crossword__cell[data-row="14"][data-col="5"] {
+  border-left: none;
+}
+
+.crossword__cell[data-row="5"][data-col="5"],
+.crossword__cell[data-row="5"][data-col="7"],
+.crossword__cell[data-row="5"][data-col="11"],
+.crossword__cell[data-row="8"][data-col="5"],
+.crossword__cell[data-row="8"][data-col="7"],
+.crossword__cell[data-row="8"][data-col="11"],
+.crossword__cell[data-row="8"][data-col="14"],
+.crossword__cell[data-row="11"][data-col="1"],
+.crossword__cell[data-row="11"][data-col="5"],
+.crossword__cell[data-row="11"][data-col="11"],
+.crossword__cell[data-row="11"][data-col="14"],
+.crossword__cell[data-row="14"][data-col="1"] {
+  border-top: none;
+} */
+
+.crossword__cell--empty {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.crossword__cell:has(.crossword__number) {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none;
+}
+
+.crossword__questions {
+  font-size: 18px;
+  font-family: var(--font-family-accent);
+  font-weight: 500;
+  border: 1px solid var(--color-primary);
+  padding: 30px 60px;
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+}
+
+.crossword__preview {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.crossword__preview:not(.is-active) {
+  display: none;
+}
+
+.crossword__preview-content {
+  max-width: 300px;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.crossword-slider {
+  display: none !important;
+  width: 100%;
+  height: 100% !important;
+  position: relative;
+}
+
+.crossword-slider.is-active {
+  display: block !important;
+}
+
+.crossword-slider__wrapper {
+  height: 100% !important;
+  align-items: center;
+}
+
+.crossword-slider__slide {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding-inline: 50px;
+}
+
+.crossword-slider__slide-content {
+  max-width: 300px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.crossword-slider__button {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+}
+
+.crossword-slider__button--prev {
+  left: 0;
+}
+
+.crossword-slider__button--next {
+  right: 0;
+}
+
+.swiper-button-next, .swiper-button-prev {
+  margin-top: 0 !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.swiper-button-next svg, .swiper-button-prev svg {
+  fill: none !important;
+}
+
+.popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-duration) ease;
+}
+
+.popup.popup--stage-completed {
+  padding-block: 86px;
+}
+
+.popup.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.popup__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.popup.popup--stage-completed .popup__overlay {
+  background: var(--background);
+  background-image: url("../images/circles-bg.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.popup__wrapper {
+  position: relative;
+  background: var(--color-light);
+  border-radius: var(--border-radius);
+  padding: 60px;
+  max-width: 1044px;
+  width: 100%;
+  box-shadow: 3px 6px 10px 0px #0000001A;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+}
+
+.popup.popup--stage-completed .popup__wrapper {
+  max-width: 1164px;
+  height: 100%;
+}
+
+.popup__content {
+  max-width: 476px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 60px;
+  text-align: center;
+}
+
+.popup.popup--stage-completed .popup__content {
+  row-gap: 70px;
+}
+
+.popup__body {
+  display: flex;
+  flex-direction: column;
+  row-gap: 10px;
+}
+
+.popup__title {
+  font-size: 36px;
+  text-transform: uppercase;
+  line-height: 140%;
+  color: var(--color-primary);
+  font-weight: 400;
+}
+
+.popup__description {
+  font-size: 24px;
+  font-family: var(--font-family-accent);
+  font-weight: 500;
+}
+
+.popup__button {
+  font-size: 24px;
+  text-transform: uppercase;
+  background-color: var(--color-primary);
+  color: var(--color-light);
+  width: 100%;
+  text-align: center;
+  padding: 28.5px;
+  border-radius: 100px;
+  transition: all var(--transition-duration) ease;
+}
+
+.popup__button:hover {
+  background-color: #1869e1;
+  transform: scale(1.025);
+}
+
+#mobile-keyboard-input {
+  position: absolute;
+  left: -1000px;
+  top: -1000px;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border: none;
+  background: transparent;
+}
