@@ -66,11 +66,9 @@ class CrosswordGame {
 
     this.popupController = new PopupController();
 
-    // Инициализация мобильного ввода
-    this.setupMobileInput();
-
     this.loadProgress();
     this.init();
+    this.setupMobileInput();
   }
 
   detectMobileDevice() {
@@ -102,20 +100,23 @@ class CrosswordGame {
     this.mobileInput.setAttribute('autocapitalize', 'characters');
     this.mobileInput.setAttribute('spellcheck', 'false');
     this.mobileInput.setAttribute('aria-hidden', 'true');
-    this.mobileInput.setAttribute('tabindex', '-1');
 
     this.mobileInput.style.cssText = `
       position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
-      border: none;
-      background: transparent;
-      font-size: 16px; /* Предотвращает зум в iOS */
-      z-index: -1;
+      bottom: 5px;
+      right: 5px;
+      width: 10px;
+      height: 10px;
+      opacity: 0.5;
+      background: rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.2);
+      border-radius: 2px;
+      font-size: 8px;
+      color: transparent;
+      z-index: 10000;
+      pointer-events: auto;
+      -webkit-user-select: none;
+      user-select: none;
     `;
 
     document.body.appendChild(this.mobileInput);
@@ -139,11 +140,19 @@ class CrosswordGame {
 
     this.mobileInput.addEventListener('focus', () => {
       this.isKeyboardActive = true;
-      this.keyboardRetryCount = 0;
+      setTimeout(() => {
+        this.mobileInput.style.opacity = '0.1';
+        this.mobileInput.style.background = 'transparent';
+        this.mobileInput.style.border = 'none';
+      }, 100);
     });
 
     this.mobileInput.addEventListener('blur', () => {
       this.isKeyboardActive = false;
+      this.mobileInput.style.opacity = '0.5';
+      this.mobileInput.style.background = 'rgba(0,0,0,0.1)';
+      this.mobileInput.style.border = '1px solid rgba(0,0,0,0.2)';
+      
       this.handleKeyboardBlur();
     });
 
@@ -153,13 +162,19 @@ class CrosswordGame {
   addTouchHandlers() {
     this.cellElements.forEach((cell) => {
       if (this.isInputCell(cell) && !this.isCorrectCell(cell)) {
-        cell.removeEventListener('touchstart', this.handleTouchStart);
-        
         cell.addEventListener('touchstart', (e) => {
           this.handleTouchStart(e, cell);
         }, { passive: true });
       }
     });
+  }
+
+  /**
+   * Обработчик touch событий для мобильных устройств
+   */
+  handleTouchStart(e, cell) {
+    e.preventDefault();
+    this.handleCellClick(cell);
   }
 
   handleKeyboardBlur() {
@@ -172,22 +187,6 @@ class CrosswordGame {
     }
   }
 
-  handleTouchStart(e, cell) {
-    if (!this.isInputCell(cell) || this.isCorrectCell(cell)) return;
-    
-    e.preventDefault();
-    
-    const wordInfo = this.findWordForCell(cell);
-    if (wordInfo) {
-      this.currentWordId = wordInfo.id;
-      this.currentDirection = wordInfo.data.direction;
-      this.slider.goToQuestion(this.currentWordId.toString());
-    }
-    
-    this.setFocus(cell);
-    this.openAndKeepKeyboard();
-  }
-
   /**
    * Открытие и удержание клавиатуры в открытом состоянии
    * Устанавливает флаг keepKeyboardOpen и фокусируется на скрытом input
@@ -196,51 +195,21 @@ class CrosswordGame {
     if (!this.isMobile || !this.currentCell) return;
     
     this.keepKeyboardOpen = true;
-    this.keyboardRetryCount = 0;
     
-    const tryFocus = () => {
-      if (!this.keepKeyboardOpen || this.isKeyboardActive) return;
+    if (this.isIOS) {
+      setTimeout(() => {
+        this.mobileInput.focus();
+      }, 100);
       
-      try {
-        // Разные стратегии для разных устройств
-        if (this.isIOS) {
-          this.focusForIOS();
-        } else {
+      setTimeout(() => {
+        if (!this.isKeyboardActive) {
           this.mobileInput.focus();
+          this.mobileInput.click();
         }
-        
-        this.keyboardRetryCount++;
-        
-        // Пробуем еще раз если не сработало
-        if (!this.isKeyboardActive && this.keyboardRetryCount < this.maxKeyboardRetries) {
-          setTimeout(tryFocus, 200);
-        }
-      } catch (error) {
-        console.warn('Keyboard focus error:', error);
-      }
-    };
-    
-    setTimeout(tryFocus, 100);
-  }
-
-  focusForIOS() {
-    this.mobileInput.style.opacity = '0.01';
-    this.mobileInput.style.pointerEvents = 'auto';
-    this.mobileInput.style.zIndex = '10000';
-    
-    this.mobileInput.focus();
-    
-    setTimeout(() => {
-      this.mobileInput.click();
-    }, 50);
-    
-    setTimeout(() => {
-      if (this.isKeyboardActive) {
-        this.mobileInput.style.opacity = '0';
-        this.mobileInput.style.pointerEvents = 'none';
-        this.mobileInput.style.zIndex = '-1';
-      }
-    }, 1000);
+      }, 300);
+    } else {
+      this.mobileInput.focus();
+    }
   }
 
   /**
