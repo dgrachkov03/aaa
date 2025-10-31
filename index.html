@@ -14,6 +14,10 @@
   <!-- Swiper CSS -->
   <link rel="stylesheet" href="./css/swiper-bundle.min.css">
 
+  <script>
+    document.documentElement.classList.add(/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios' : 'not-ios');
+  </script>
+
   <!-- Подключение скриптов -->
   <script src="./scripts/swiper-bundle.min.js" defer></script>
   <script type="module" src="./scripts/index.js"></script>

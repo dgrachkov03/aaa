@@ -104,6 +104,7 @@ class CrosswordGame {
     this.mobileInput.setAttribute('aria-hidden', 'true');
     this.mobileInput.setAttribute('tabindex', '-1');
 
+    // Базовые стили для всех устройств
     this.mobileInput.style.cssText = `
       position: fixed;
       bottom: 0;
@@ -114,7 +115,7 @@ class CrosswordGame {
       pointer-events: none;
       border: none;
       background: transparent;
-      font-size: 16px; /* Предотвращает зум в iOS */
+      font-size: 16px;
       z-index: -1;
     `;
 
@@ -154,10 +155,27 @@ class CrosswordGame {
     this.cellElements.forEach((cell) => {
       if (this.isInputCell(cell) && !this.isCorrectCell(cell)) {
         cell.removeEventListener('touchstart', this.handleTouchStart);
+        cell.removeEventListener('touchend', this.handleTouchEnd);
+        cell.removeEventListener('touchmove', this.handleTouchMove);
+        
+        let touchTimeout;
         
         cell.addEventListener('touchstart', (e) => {
-          this.handleTouchStart(e, cell);
-        }, { passive: true });
+          e.preventDefault();
+          touchTimeout = setTimeout(() => {
+            this.handleTouchStart(e, cell);
+          }, 100);
+        }, { passive: false });
+        
+        cell.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          clearTimeout(touchTimeout);
+        }, { passive: false });
+        
+        cell.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          clearTimeout(touchTimeout);
+        }, { passive: false });
       }
     });
   }
@@ -224,23 +242,27 @@ class CrosswordGame {
   }
 
   focusForIOS() {
-    this.mobileInput.style.opacity = '0.01';
-    this.mobileInput.style.pointerEvents = 'auto';
-    this.mobileInput.style.zIndex = '10000';
+    this.mobileInput.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      opacity: 0.3;
+      background: rgba(0,0,0,0.1);
+      border: 2px solid rgba(0,0,0,0.3);
+      border-radius: 8px;
+      pointer-events: auto;
+      z-index: 10000;
+      font-size: 16px;
+    `;
     
     this.mobileInput.focus();
     
+    // Дополнительный клик для надежности
     setTimeout(() => {
       this.mobileInput.click();
     }, 50);
-    
-    setTimeout(() => {
-      if (this.isKeyboardActive) {
-        this.mobileInput.style.opacity = '0';
-        this.mobileInput.style.pointerEvents = 'none';
-        this.mobileInput.style.zIndex = '-1';
-      }
-    }, 1000);
   }
 
   /**
@@ -253,8 +275,25 @@ class CrosswordGame {
     this.keepKeyboardOpen = false;
     this.isKeyboardActive = false;
     this.mobileInput.blur();
+    
+    // Возвращаем обычные стили для iOS
+    if (this.isIOS) {
+      this.mobileInput.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        opacity: 0.3;
+        background: rgba(0,0,0,0.1);
+        border: 2px solid rgba(0,0,0,0.3);
+        border-radius: 8px;
+        pointer-events: auto;
+        z-index: 10000;
+        font-size: 16px;
+      `;
+    }
   }
-
   /**
    * Обеспечивает постоянный фокус на input для мобильной клавиатуры
    * Автоматически возвращает фокус если клавиатура должна оставаться открытой
