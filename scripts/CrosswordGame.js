@@ -48,7 +48,6 @@ class CrosswordGame {
     // Определяем мобильное устройство
     this.isMobile = this.detectMobileDevice();
     this.isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    this.isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 
     // Флаги для управления мобильной клавиатурой
     this.keepKeyboardOpen = false;
@@ -562,9 +561,13 @@ class CrosswordGame {
     if (cell && this.isInputCell(cell)) {
       cell.classList.add(this.stateClasses.isFocused);
       
-      if (!this.isMobile) {
+      // Всегда используем нативный фокус для contenteditable
+      setTimeout(() => {
         cell.focus();
-      }
+        if (this.isIOS) {
+          this.forceIOSKeyboard(cell);
+        }
+      }, 10);
       
       this.currentCell = cell;
       this.highlightCurrentWord();
@@ -573,6 +576,20 @@ class CrosswordGame {
     }
     
     return false;
+  }
+
+  // Вспомогательный метод для установки курсора
+  setCaretToEnd(element) {
+    try {
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } catch (error) {
+      // Игнорируем ошибки selection
+    }
   }
 
   /**
@@ -717,6 +734,125 @@ class CrosswordGame {
       return currentCol === startCol + length - 1;
     } else {
       return currentRow === startRow + length - 1;
+    }
+  }
+
+  handleCellFocus(cell) {
+    if (this.isMobile) {
+      this.keepKeyboardOpen = true;
+    }
+  }
+
+  handleCellBlur(cell) {
+    if (this.isMobile) {
+      this.keepKeyboardOpen = false;
+    }
+  }
+
+  handleCellInput(e, cell) {
+    if (this.isCorrectCell(cell)) return;
+    
+    let text = cell.textContent || '';
+    
+    // Ограничиваем до 1 символа и переводим в верхний регистр
+    if (text.length > 0) {
+      text = text.charAt(0).toUpperCase();
+      cell.textContent = text;
+      
+      // Сохраняем курсор в конце (но скрытый)
+      this.setCaretToEnd(cell);
+    }
+    
+    // Вызываем стандартную логику
+    if (text.length === 1) {
+      this.clearWrongStatusOnly(cell);
+      this.checkAllWordsForCell(cell);
+      this.saveProgress();
+      
+      if (!this.isEndOfWord()) {
+        setTimeout(() => {
+          this.moveInCurrentDirection("forward");
+        }, 50);
+      }
+    }
+  }
+
+  handleCellKeyDown(e, cell) {
+    if (this.isCorrectCell(cell)) return;
+    
+    e.preventDefault();
+    
+    if (e.key === 'Backspace') {
+      const hasContent = cell.textContent !== '';
+      
+      if (hasContent && !this.isCorrectCell(cell)) {
+        cell.textContent = '';
+        this.clearWrongStatusOnly(cell);
+        this.saveProgress();
+      } else {
+        this.moveInCurrentDirection("backward");
+      }
+    }
+    else if (e.key === 'Enter') {
+      this.checkCurrentWord();
+    }
+    else if (e.key.startsWith('Arrow')) {
+      this.handleArrowNavigation(e.key);
+    }
+    // Блокируем все остальные клавиши кроме букв
+    else if (e.key.length === 1 && !/[а-яА-Яa-zA-Z]/.test(e.key)) {
+      e.preventDefault();
+    }
+  }
+
+  // Специальный метод для iOS
+  handleIOSTouchStart(e, cell) {
+    if (!this.isInputCell(cell) || this.isCorrectCell(cell)) return;
+    
+    // Предотвращаем двойное срабатывание
+    e.stopPropagation();
+    
+    const wordInfo = this.findWordForCell(cell);
+    if (wordInfo) {
+      this.currentWordId = wordInfo.id;
+      this.currentDirection = wordInfo.data.direction;
+      this.slider.goToQuestion(this.currentWordId.toString());
+    }
+    
+    this.setFocus(cell);
+    
+    // Для iOS - дополнительная активация
+    if (this.isIOS) {
+      setTimeout(() => {
+        cell.focus();
+        // Пытаемся вызвать selection для активации клавиатуры
+        this.forceIOSKeyboard(cell);
+      }, 100);
+    }
+  }
+
+  // Метод для принудительной активации клавиатуры на iOS
+  forceIOSKeyboard(element) {
+    if (!this.isIOS) return;
+    
+    try {
+      // Создаем временный selection
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Дополнительные попытки для упрямых устройств
+      setTimeout(() => {
+        element.blur();
+        setTimeout(() => element.focus(), 50);
+      }, 200);
+      
+    } catch (error) {
+      console.warn('iOS keyboard activation failed:', error);
     }
   }
 
@@ -1224,6 +1360,17 @@ class CrosswordGame {
       if (this.isInputCell(cell) && !this.isCorrectCell(cell)) {
         cell.addEventListener("click", () => this.handleCellClick(cell));
         cell.setAttribute("tabindex", "0");
+        
+        // Специальные обработчики для contenteditable
+        cell.addEventListener('focus', () => this.handleCellFocus(cell));
+        cell.addEventListener('blur', () => this.handleCellBlur(cell));
+        cell.addEventListener('input', (e) => this.handleCellInput(e, cell));
+        cell.addEventListener('keydown', (e) => this.handleCellKeyDown(e, cell));
+        
+        // Для iOS - дополнительные обработчики
+        if (this.isIOS) {
+          cell.addEventListener('touchstart', (e) => this.handleIOSTouchStart(e, cell), { passive: true });
+        }
       }
     });
 

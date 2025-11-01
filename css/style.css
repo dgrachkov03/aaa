@@ -475,13 +475,23 @@ body {
   user-select: text;
   outline: none;
   cursor: text;
-  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.crossword__cell[contenteditable="true"] br {
-  display: none;
+/* Предотвращаем зум при фокусе на iOS */
+.crossword__cell[contenteditable="true"]:focus {
+  font-size: 16px;
 }
 
-.crossword__cell[contenteditable="true"] * {
-  display: inline;
+/* Скрываем каретку/курсор */
+.crossword__cell[contenteditable="true"] {
+  caret-color: transparent;
+}
+
+/* Убираем стандартное выделение */
+.crossword__cell[contenteditable="true"]::selection {
+  background: transparent;
+}
+.crossword__cell[contenteditable="true"]::-moz-selection {
+  background: transparent;
 }
